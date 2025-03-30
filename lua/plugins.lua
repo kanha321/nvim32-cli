@@ -1,0 +1,2 @@
+-- This file is deprecated and can be safely deleted.
+-- The modular plugin configuration in lua/plugins/ replaces this file.
