@@ -1,6 +1,13 @@
 -- Entry point for Neovim configuration
 
--- Verify lazy.nvim path
+-- Set leader key before loading any plugins
+vim.g.mapleader = " "
+vim.g.maplocalleader = " "
+
+-- Enable maximum LSP logging for debugging
+vim.lsp.set_log_level("debug")
+
+-- Verify lazy.nvim path and install if needed
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not vim.loop.fs_stat(lazypath) then
   vim.notify("Installing lazy.nvim...", vim.log.levels.INFO)
@@ -12,61 +19,46 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Set leader key before loading any plugins
-vim.g.mapleader = " "
-vim.g.maplocalleader = " "
-
--- Enable maximum LSP logging for debugging
-vim.lsp.set_log_level("debug")
-
 -- Create a special location for JDTLS logs
 vim.fn.mkdir(vim.fn.expand("~/.cache/jdtls"), "p")
+-- Set permission on the JDTLS directory
+vim.fn.system("chmod -R 777 " .. vim.fn.expand("~/.cache/jdtls"))
+-- Let JDTLS know where it can find things
 vim.env.JDTLS_HOME = vim.fn.expand("~/.local/share/nvim/mason/packages/jdtls")
 
--- Setup special debug helpers
-vim.defer_fn(function()
-  -- Silently try to load the debug modules
-  pcall(require, "debug.lsp")
-  pcall(require, "debug.jdtls")
-end, 1000)
-
 -- Basic Neovim settings first
--- Load core settings
 require('core.options')  -- Basic vim options
 
--- Bootstrap and load plugins
-require('plugins.init') -- This loads our modular plugin system
+-- Bootstrap and load plugins with clear error handling
+local plugins_ok, plugins_error = pcall(require, 'plugins.init')
+if not plugins_ok then
+  vim.notify("Error loading plugins: " .. tostring(plugins_error), vim.log.levels.ERROR)
+  -- Continue anyway to allow some functionality
+else 
+  vim.notify("Plugins loaded successfully", vim.log.levels.INFO)
+end
 
--- Add debug commands
-vim.api.nvim_create_user_command('LspDebugInfo', function()
-  local debug_ok, debug_lsp = pcall(require, "debug.lsp")
-  if debug_ok then
-    debug_lsp.print_diagnostics()
+-- Load core components
+require('core.keymaps')  -- Key mappings
+require('core.autocmds') -- Auto commands
+
+-- Add JavaRestart command for manual JDTLS control
+vim.api.nvim_create_user_command('JavaRestart', function()
+  -- Load our java.lua file directly
+  local success, err = pcall(function()
+    vim.cmd('source ' .. vim.fn.stdpath("config") .. '/ftplugin/java.lua')
+  end)
+  
+  if success then
+    vim.notify("JDTLS restarted", vim.log.levels.INFO)
   else
-    vim.notify("Debug module not loaded. Create lua/debug/lsp.lua first", vim.log.levels.WARN)
+    vim.notify("Failed to restart JDTLS: " .. tostring(err), vim.log.levels.ERROR)
   end
 end, {})
 
--- Load after plugins are initialized
-require('core.keymaps')  -- Key mappings that may depend on plugins
-require('core.autocmds') -- Auto commands
-
--- Defer LSP initialization check to give it time to start
-vim.defer_fn(function()
-  local clients = vim.lsp.get_active_clients()
-  if #clients == 0 then
-    vim.notify("No LSP clients active after initialization. Use :LspDebugInfo to troubleshoot", vim.log.levels.WARN)
-  else
-    vim.notify(#clients .. " LSP client(s) active", vim.log.levels.INFO)
-  end
-end, 3000)
-
--- Disable unnecessary messages
-vim.opt.shortmess:append("I") -- Disable intro message when starting Neovim
-
 -- Create command to reload configuration
 vim.api.nvim_create_user_command('ReloadConfig', function()
-  -- Unload modules
+  -- Unload modules to ensure fresh state
   for name, _ in pairs(package.loaded) do
     if name:match('^plugins') or name:match('^core') then
       package.loaded[name] = nil
@@ -76,19 +68,4 @@ vim.api.nvim_create_user_command('ReloadConfig', function()
   -- Reload the config
   dofile(vim.fn.stdpath('config') .. '/init.lua')
   vim.notify("Configuration reloaded!", vim.log.levels.INFO)
-end, {})
-
--- Create a command to check key mappings
-vim.api.nvim_create_user_command('CheckKeys', function()
-  local leader_mappings = {}
-  for _, map in ipairs(vim.api.nvim_get_keymap('n')) do
-    if map.lhs:match("^ ") then
-      table.insert(leader_mappings, map.lhs .. " -> " .. (map.rhs or map.callback or "?"))
-    end
-  end
-  
-  print("Leader mappings:")
-  for _, mapping in ipairs(leader_mappings) do
-    print(mapping)
-  end
 end, {})

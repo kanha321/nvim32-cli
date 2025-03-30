@@ -30,6 +30,12 @@ These keybindings function exactly the same as in IntelliJ IDEA/Android Studio:
 | `<leader>em` | Space+e+m | Visual | Extract method (like Ctrl+Alt+M) |
 | `<leader>oi` | Space+o+i | Normal | Organize imports (like Ctrl+Alt+O) |
 | `<leader>ji` | Space+j+p | Normal | Organize imports (like Ctrl+Alt+O) |
+| `<leader>jv` | Space+j+v | Normal/Visual | Extract variable (like Ctrl+Alt+V) |
+| `<leader>jc` | Space+j+c | Normal/Visual | Extract constant (like Ctrl+Alt+C) |
+| `<leader>jm` | Space+j+m | Visual | Extract method (like Ctrl+Alt+M) |
+| `<leader>ji` | Space+j+i | Normal | Organize imports (like Ctrl+Alt+O) |
+| `<leader>jr` | Space+j+r | Normal | Restart Java language server |
+| `<leader>jc` | Space+j+c | Normal | Clean Java workspace |
 
 ## 2. Different from IntelliJ
 
