@@ -96,7 +96,6 @@ keymap("n", "<leader>ll", function()
 end, { noremap = true, silent = true, desc = "Open LSP log file" })
 
 -- LSP debug/fix keys
-keymap("n", "<leader>lR", "<cmd>StartJdtls<CR>", { noremap = true, desc = "Restart JDTLS" })
 keymap("n", "<leader>ld", "<cmd>LspDebug<CR>", { noremap = true, desc = "Debug LSP setup" })
 keymap("n", "<leader>ls", function()
   local ft = vim.bo.filetype
@@ -108,25 +107,6 @@ keymap("n", "<leader>ls", function()
   end
 end, { noremap = true, desc = "Start LSP for current filetype" })
 
--- Add enhanced LSP diagnostics commands
-keymap("n", "<leader>lD", function()
-  local debug_ok, debug_lsp = pcall(require, "debug.lsp")
-  if debug_ok then
-    debug_lsp.print_diagnostics()
-  else
-    print("Debug module not available. Run :e lua/debug/lsp.lua first")
-  end
-end, { noremap = true, desc = "Print detailed LSP diagnostics" })
-
-keymap("n", "<leader>lf", function()
-  local debug_ok, debug_lsp = pcall(require, "debug.lsp")
-  if debug_ok then
-    debug_lsp.force_start_lsp()
-  else
-    print("Debug module not available. Run :e lua/debug/lsp.lua first")
-  end
-end, { noremap = true, desc = "Force start LSP for current filetype" })
-
 -- Show keymaps help - ensure the keymaps.md file exists
 if vim.fn.filereadable(vim.fn.expand("~/nvim/keymaps.md")) == 1 then
   keymap("n", "<leader>?", "<cmd>edit ~/nvim/keymaps.md<CR>", opts)
@@ -137,6 +117,90 @@ end
 -- Add a force reload config option
 keymap("n", "<leader>r", "<cmd>ReloadConfig<CR>", opts)
 
--- Add simple JDTLS commands
-keymap("n", "<leader>jr", "<cmd>JavaRestart<CR>", { noremap = true, desc = "Restart Java language server" })
+-- Java development keymaps
+keymap("n", "<leader>jr", function()
+  -- Restart Java language server by reloading the current file
+  vim.cmd("e")
+end, { noremap = true, desc = "Restart Java language server" })
+
+keymap("n", "<leader>ji", function()
+  local jdtls_ok, jdtls = pcall(require, "jdtls")
+  if jdtls_ok then
+    jdtls.organize_imports()
+  else
+    print("JDTLS not available")
+  end
+end, { noremap = true, desc = "Organize imports" })
+
 keymap("n", "<leader>jc", "<cmd>JavaClean<CR>", { noremap = true, desc = "Clean Java workspace" })
+
+keymap("n", "<leader>jv", function()
+  local jdtls_ok, jdtls = pcall(require, "jdtls")
+  if jdtls_ok then
+    jdtls.extract_variable()
+  else
+    print("JDTLS not available")
+  end
+end, { noremap = true, desc = "Extract variable" })
+
+keymap("v", "<leader>jv", function()
+  local jdtls_ok, jdtls = pcall(require, "jdtls")
+  if jdtls_ok then
+    jdtls.extract_variable(true)
+  else
+    print("JDTLS not available")
+  end
+end, { noremap = true, desc = "Extract variable (visual)" })
+
+keymap("n", "<leader>jm", function()
+  local jdtls_ok, jdtls = pcall(require, "jdtls")
+  if jdtls_ok then
+    jdtls.extract_method()
+  else
+    print("JDTLS not available")
+  end
+end, { noremap = true, desc = "Extract method" })
+
+keymap("v", "<leader>jm", function()
+  local jdtls_ok, jdtls = pcall(require, "jdtls")
+  if jdtls_ok then
+    jdtls.extract_method(true)
+  else
+    print("JDTLS not available")
+  end
+end, { noremap = true, desc = "Extract method (visual)" })
+
+keymap("n", "<leader>jt", function() 
+  local root_markers = { '.git', 'mvnw', 'gradlew', 'pom.xml', 'build.gradle' }
+  local root_dir = require('jdtls.setup').find_root(root_markers) or vim.fn.getcwd()
+  -- Try to find the main class
+  vim.cmd("!cd " .. root_dir .. " && java -jar target/*.jar")
+end, { noremap = true, desc = "Run Java application" })
+
+-- Code running (manual implementation)
+function RunCode()
+    local filetype = vim.bo.filetype
+    local commands = {
+        python = "python %",
+        c = "gcc % -o a.out && ./a.out || echo 'Compilation failed!'",
+        cpp = "g++ % -o a.out && ./a.out || echo 'Compilation failed!'",
+        asm = "gcc % -nostdlib -static -o a.out && ./a.out || echo 'Compilation failed!'",
+        sh = "if [ -x % ]; then ./%; else sh %; fi",
+        java = "mkdir -p out && javac -d out " .. vim.fn.expand('%:p') .. " && java -cp out " .. vim.fn.expand('%:t:r'),
+    }
+
+    local command = commands[filetype]
+    if command then
+        vim.cmd("w") -- Save file
+        vim.cmd("TermExec cmd='" .. command .. "'")
+    else
+        print("No run command set for this filetype: " .. filetype)
+    end
+end
+
+-- Key mapping to run code (traditional method as backup)
+keymap("n", ")", ":lua RunCode()<CR>", { desc = "Run code based on filetype" })
+keymap("n", "<C-'>", ":lua RunCode()<CR>", { noremap = true, silent = true })
+
+-- nvimtree toggle (added here for redundancy/backup)
+keymap('n', '<leader>e', "<cmd>NvimTreeToggle<CR>", { desc = "Toggle [E]xplorer" })

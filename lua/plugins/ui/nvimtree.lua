@@ -8,120 +8,43 @@ return {
     
     -- Disable git integration to avoid gitsigns conflicts
     require("nvim-tree").setup({
+      git = { enable = false },
+      view = { width = 30 },
+      renderer = {
+        icons = { show = { git = false, folder = false, file = false, folder_arrow = false } },
+        group_empty = true,
+        add_trailing = true,
+      },
       on_attach = function(bufnr)
-        local api = require("nvim-tree.api")
+        local api = require('nvim-tree.api')
         
-        -- Helper function for creating keymaps
-        local function map(key, action, desc)
-          vim.keymap.set('n', key, action, { buffer = bufnr, desc = desc, noremap = true, silent = true })
+        -- Custom key mappings for NvimTree
+        local function opts(desc)
+          return { desc = desc, buffer = bufnr, noremap = true, silent = true, nowait = true }
         end
 
-        -- Default mappings for usability
-        map("<CR>", api.node.open.edit, "Open")
-        map("o", api.node.open.edit, "Open")
-        map("<2-LeftMouse>", api.node.open.edit, "Open")
-        map("d", api.fs.remove, "Delete")
-        map("a", api.fs.create, "Create")
-        map("r", api.fs.rename, "Rename")
-        map("c", api.fs.copy.node, "Copy")
-        map("x", api.fs.cut, "Cut")
-        map("p", api.fs.paste, "Paste")
-        map("q", api.tree.close, "Close Window")
-        
-        -- Vim-like navigation with h and l
-        map("l", api.node.open.edit, "Open File/Directory")
-        map("h", api.node.navigate.parent_close, "Close Directory")
+        -- Custom IntelliJ-like mappings
+        vim.keymap.set('n', 'l', api.node.open.edit, opts('Open'))
+        vim.keymap.set('n', 'h', api.node.navigate.parent_close, opts('Close Directory'))
+        vim.keymap.set('n', '<CR>', api.node.open.edit, opts('Open'))
+        vim.keymap.set('n', 'o', api.node.open.edit, opts('Open'))
+        vim.keymap.set('n', '<2-LeftMouse>', api.node.open.edit, opts('Open'))
+        vim.keymap.set('n', 'I', api.tree.toggle_gitignore_filter, opts('Toggle Git Ignore'))
+        vim.keymap.set('n', 'R', api.tree.reload, opts('Refresh'))
+        vim.keymap.set('n', 'a', api.fs.create, opts('Create'))
+        vim.keymap.set('n', 'd', api.fs.remove, opts('Delete'))
+        vim.keymap.set('n', 'r', api.fs.rename, opts('Rename'))
+        vim.keymap.set('n', 'c', api.fs.copy.node, opts('Copy'))
+        vim.keymap.set('n', 'x', api.fs.cut, opts('Cut'))
+        vim.keymap.set('n', 'p', api.fs.paste, opts('Paste'))
+        vim.keymap.set('n', 'y', api.fs.copy.filename, opts('Copy Name'))
+        vim.keymap.set('n', 'Y', api.fs.copy.relative_path, opts('Copy Relative Path'))
+        vim.keymap.set('n', 'q', api.tree.close, opts('Close'))
+        vim.keymap.set('n', '?', api.tree.toggle_help, opts('Help'))
       end,
-      
-      view = {
-        width = 30,
-        preserve_window_proportions = true, -- Prevent window size issues
-      },
-      renderer = {
-        add_trailing = true, -- Add trailing slash to folder names
-        group_empty = true,
-        highlight_git = false, -- Disable git highlighting
-        highlight_opened_files = "none", -- Disable highlighting open files
-        icons = {
-          webdev_colors = false,
-          show = {
-            file = true,
-            folder = true,
-            folder_arrow = false,
-            git = false,
-          },
-          glyphs = {
-            default = ".", -- Simple dot for all files
-            symlink = "L",
-            folder = {
-              arrow_closed = ">",
-              arrow_open = "v",
-              default = "#", -- Simple hash for folders
-              open = "#",
-              empty = "#",
-              empty_open = "#",
-              symlink = "L#",
-              symlink_open = "L#",
-            }
-          },
-        },
-        special_files = {}, -- No special highlighting
-        symlink_destination = false, -- Don't show symlink destination
-      },
-      git = {
-        enable = false, -- Disable git integration completely
-      },
-      diagnostics = {
-        enable = false, -- Disable diagnostics integration to reduce complexity
-      },
-      filters = {
-        dotfiles = false,
-        custom = { ".git", "node_modules", "target", ".idea" },
-      },
-      sync_root_with_cwd = false, -- Disable syncing to reduce errors
-      respect_buf_cwd = true,
-      update_focused_file = {
-        enable = true, 
-        update_root = false, -- Disable updating root to prevent errors
-      },
-      actions = {
-        use_system_clipboard = true,
-        change_dir = {
-          enable = true,
-          global = false,
-          restrict_above_cwd = true,
-        },
-        open_file = {
-          quit_on_open = false,
-          resize_window = false, -- Disable resizing to avoid issues
-        },
-      },
-      notify = {
-        threshold = vim.log.levels.WARN, -- Only show warnings and errors
-      },
-      log = {
-        enable = false,
-        truncate = true,
-        types = {
-          git = false, -- Disable git logging
-          profile = false, -- Disable profile logging
-        },
-      },
-      system_open = {
-        cmd = nil,
-      },
     })
     
-    -- Simple key mapping with error handling
-    vim.keymap.set("n", "<leader>e", function()
-      local status, err = pcall(function()
-        vim.cmd("NvimTreeToggle")
-      end)
-      if not status then
-        vim.notify("NvimTree error: " .. err, vim.log.levels.ERROR)
-      end
-    end, { noremap = true, silent = true, desc = "Toggle NvimTree" })
-  end,
-  -- No dependencies to prevent issues
-  dependencies = {},
+    -- NvimTree toggle mapping (as requested)
+    vim.keymap.set('n', '<leader>e', "<cmd>NvimTreeToggle<CR>", { desc = "Toggle [E]xplorer" })
+  end
 }

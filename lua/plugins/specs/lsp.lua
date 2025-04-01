@@ -51,9 +51,4 @@ return {
       end, { noremap = true, silent = true, desc = "Show parameter hints" })
     end,
   },
-
-  -- JDTLS (Java support)
-  {
-    'mfussenegger/nvim-jdtls',
-  },
 }

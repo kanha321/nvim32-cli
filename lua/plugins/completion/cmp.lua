@@ -26,6 +26,9 @@ return {
     -- Load friendly-snippets and configure them
     require("luasnip.loaders.from_vscode").lazy_load()
     
+    -- Load our custom snippets
+    require("snippets").setup()
+    
     -- Enable snippet filetype detection
     luasnip.filetype_extend("javascript", { "javascriptreact" })
     luasnip.filetype_extend("javascript", { "html" })
@@ -33,7 +36,7 @@ return {
     luasnip.filetype_extend("kotlin", { "java" }) -- Reuse Java snippets for Kotlin
     
     -- Make snippets work with Tab key in the same session
-    require("luasnip").config.set_config({ 
+    luasnip.config.set_config({ 
       history = true,
       updateevents = "TextChanged,TextChangedI",
       enable_autosnippets = true,
@@ -97,7 +100,14 @@ return {
             path = "[Path]",
           }
           
+          -- Show which snippet engine provided this completion
           vim_item.menu = source_mapping[entry.source.name]
+          
+          -- If this is a snippet completion, add the snippet name
+          if entry.source.name == "luasnip" then
+            vim_item.menu = source_mapping.luasnip .. " " .. (entry.completion_item.label or "")
+          end
+          
           return vim_item
         end,
       },
@@ -111,56 +121,6 @@ return {
       experimental = {
         ghost_text = true,
       }
-    })
-    
-    -- Add more custom snippets
-    local snip = luasnip.snippet
-    local text = luasnip.text_node
-    local insert = luasnip.insert_node
-    
-    -- Custom snippets for Java and Kotlin
-    -- Example: "psvm" expands to public static void main
-    luasnip.add_snippets("java", {
-      snip({
-        trig = "psvm",
-        name = "public static void main",
-        dscr = "Public static void main method"
-      }, {
-        text("public static void main(String[] args) {"),
-        text("\n\t"),
-        insert(0),
-        text("\n}")
-      }),
-      -- Add a record snippet for Java 17
-      snip({
-        trig = "record",
-        name = "Java record",
-        dscr = "Create a Java 17 record"
-      }, {
-        text("record "),
-        insert(1, "RecordName"),
-        text("("),
-        insert(2, "String field1, int field2"),
-        text(") {"),
-        text("\n\t"),
-        insert(0),
-        text("\n}")
-      }),
-      -- Add a sealed class snippet for Java 17
-      snip({
-        trig = "sealed",
-        name = "Java sealed class",
-        dscr = "Create a Java 17 sealed class"
-      }, {
-        text("sealed class "),
-        insert(1, "BaseClass"),
-        text(" permits "),
-        insert(2, "SubClass1, SubClass2"),
-        text(" {"),
-        text("\n\t"),
-        insert(0),
-        text("\n}")
-      })
     })
     
     -- Make cmp work in command mode too

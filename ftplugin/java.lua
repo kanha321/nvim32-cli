@@ -1,178 +1,109 @@
--- Ultra simple JDTLS setup with fallback mechanism
-
--- Try to load the jdtls module
+-- Use bundled JDTLS distribution that comes with the config
 local jdtls_ok, jdtls = pcall(require, "jdtls")
 if not jdtls_ok then
-  vim.notify("[JDTLS] Module not found. Install with :MasonInstall jdtls", vim.log.levels.ERROR)
+  vim.notify("[JDTLS] nvim-jdtls plugin not found", vim.log.levels.ERROR)
   return
 end
 
--- Find project root
-local root_dir = vim.fn.getcwd()
+-- Find root directory
+local root_markers = { '.git', 'mvnw', 'gradlew', 'pom.xml', 'build.gradle' }
+local root_dir = require('jdtls.setup').find_root(root_markers) or vim.fn.getcwd()
 
--- Project name for workspace folder - use simpler logic
-local project_name = vim.fn.fnamemodify(root_dir, ":t")
-local workspace_dir = vim.fn.expand("~/.cache/jdtls/workspace/" .. project_name)
+-- Project name for workspace folder
+local project_name = vim.fn.fnamemodify(root_dir, ":p:h:t")
+local workspace_dir = vim.fn.expand('~/.cache/jdtls/workspace/') .. project_name
+vim.fn.mkdir(workspace_dir, "p")
 
--- Find Java command
+-- Get config directory where Neovim configuration is stored
+local config_dir = vim.fn.stdpath("config")
+
+-- Use bundled JDTLS directly (it's already included in the config)
+local jdtls_dir = config_dir .. "/jdtls-1.43"
+local launcher_jar = vim.fn.glob(jdtls_dir .. "/plugins/org.eclipse.equinox.launcher_*.jar")
+
+if launcher_jar == "" then
+  vim.notify("[JDTLS] Bundled JDTLS not found. Using the configuration for the first time? Contact the provider.", vim.log.levels.ERROR)
+  return
+end
+
+-- Find Java executable
 local java_cmd = vim.fn.exepath('java')
 if not java_cmd or java_cmd == "" then
-  vim.notify("[JDTLS] Java executable not found in PATH", vim.log.levels.ERROR)
+  vim.notify("[JDTLS] Java executable not found", vim.log.levels.ERROR)
   return
 end
 
--- Find JDTLS installation
-local jdtls_path = nil
-
--- Try Mason first
-local mason_registry_ok, mason_registry = pcall(require, 'mason-registry')
-if mason_registry_ok and mason_registry.is_installed('jdtls') then
-  jdtls_path = mason_registry.get_package('jdtls'):get_install_path()
-else
-  -- Try common system paths
-  local possible_paths = {
-    '/usr/share/java/jdtls',
-    '/opt/jdtls',
-    vim.fn.expand('~/.local/share/nvim/mason/packages/jdtls')
-  }
-  
-  for _, path in ipairs(possible_paths) do
-    if vim.fn.isdirectory(path) == 1 then
-      jdtls_path = path
-      break
-    end
-  end
-end
-
-if not jdtls_path then
-  vim.notify("[JDTLS] Installation not found", vim.log.levels.ERROR)
-  return
-end
-
--- Try 3 different approaches, if one fails try the next one
-local function try_start_jdtls()
-  vim.notify("[JDTLS] Attempting to start server with approach 1...", vim.log.levels.INFO)
-  
-  -- Approach 1: Standard configuration with environment variable
-  local attempt_1 = function()
-    -- Ensure directories exist
-    vim.fn.mkdir(workspace_dir, 'p')
-    
-    local config = {
-      cmd = {
-        java_cmd,
-        '-Declipse.application=org.eclipse.jdt.ls.core.id1',
-        '-Dosgi.bundles.defaultStartLevel=4',
-        '-Declipse.product=org.eclipse.jdt.ls.core.product',
-        '-Xmx512m',
-        '-jar', vim.fn.glob(jdtls_path .. '/plugins/org.eclipse.equinox.launcher_*.jar'),
-        '-configuration', jdtls_path .. '/config_linux',
-        '-data', workspace_dir,
+-- Set up the JDTLS configuration
+local config = {
+  cmd = {
+    java_cmd,
+    '-Declipse.application=org.eclipse.jdt.ls.core.id1',
+    '-Dosgi.bundles.defaultStartLevel=4',
+    '-Declipse.product=org.eclipse.jdt.ls.core.product',
+    '-Xms512m',
+    '-Xmx1g',
+    '-jar', launcher_jar,
+    '-configuration', jdtls_dir .. "/config_linux",
+    '-data', workspace_dir,
+  },
+  root_dir = root_dir,
+  settings = {
+    java = {
+      configuration = {
+        runtimes = {
+          {
+            name = "JavaSE-17",
+            path = vim.env.JAVA_HOME or vim.fn.expand("/usr/lib/jvm/java-17-openjdk/"),
+            default = true,
+          },
+        },
       },
-      root_dir = root_dir
-    }
-    
-    return jdtls.start_or_attach(config)
-  end
-  
-  -- Approach 2: Try with a tmp directory
-  local attempt_2 = function()
-    vim.notify("[JDTLS] First attempt failed, trying approach 2...", vim.log.levels.WARN)
-    
-    -- Create temporary directory with full permissions
-    local temp_dir = vim.fn.expand('/tmp/jdtls_tmp_' .. os.time())
-    vim.fn.mkdir(temp_dir, 'p')
-    
-    local config = {
-      cmd = {
-        java_cmd,
-        '-Djava.io.tmpdir=' .. temp_dir,
-        '-Declipse.application=org.eclipse.jdt.ls.core.id1',
-        '-Dosgi.bundles.defaultStartLevel=4',
-        '-Declipse.product=org.eclipse.jdt.ls.core.product',
-        '-Xmx512m',
-        '-jar', vim.fn.glob(jdtls_path .. '/plugins/org.eclipse.equinox.launcher_*.jar'),
-        '-configuration', jdtls_path .. '/config_linux',
-        '-data', temp_dir .. '/workspace',
+      contentProvider = { preferred = 'fernflower' },
+      completion = {
+        favoriteStaticMembers = {
+          "org.hamcrest.MatcherAssert.assertThat",
+          "org.hamcrest.Matchers.*",
+          "org.junit.Assert.*",
+          "org.junit.Assume.*",
+          "org.junit.jupiter.api.Assertions.*",
+          "org.junit.jupiter.api.Assumptions.*",
+          "org.junit.jupiter.api.DynamicContainer.*",
+          "org.junit.jupiter.api.DynamicTest.*",
+          "java.util.Objects.requireNonNull",
+          "java.util.Objects.requireNonNullElse",
+        },
       },
-      root_dir = root_dir
-    }
+    },
+  },
+  init_options = {
+    bundles = {},
+  },
+  on_attach = function(client, bufnr)
+    -- Regular LSP keymaps
+    local opts = { noremap = true, silent = true, buffer = bufnr }
+    vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
+    vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+    vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
+    vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
+    vim.keymap.set("n", "<C-k>", vim.lsp.buf.signature_help, opts)
+    vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, opts)
+    vim.keymap.set("n", "gr", vim.lsp.buf.references, opts)
+    vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, opts)
     
-    return jdtls.start_or_attach(config)
-  end
-  
-  -- Approach 3: Ultra minimal configuration
-  local attempt_3 = function()
-    vim.notify("[JDTLS] Second attempt failed, trying approach 3...", vim.log.levels.WARN)
-    
-    -- Create a unique temporary directory directly in /tmp
-    local temp_dir = '/tmp/jdtls_' .. os.time()
-    vim.fn.mkdir(temp_dir, 'p')
-    vim.fn.system('chmod 777 ' .. vim.fn.shellescape(temp_dir))
-    
-    -- Set environment variables
-    vim.env.TEMP = temp_dir
-    vim.env.TMP = temp_dir
-    vim.env.TMPDIR = temp_dir
-    
-    local config = {
-      cmd = {
-        java_cmd,
-        '-Djava.io.tmpdir=' .. temp_dir,
-        '-XX:+UseParallelGC',
-        '-XX:GCTimeRatio=4',
-        '-XX:AdaptiveSizePolicyWeight=90',
-        '-Dsun.zip.disableMemoryMapping=true',
-        '-Declipse.application=org.eclipse.jdt.ls.core.id1',
-        '-Dosgi.bundles.defaultStartLevel=4',
-        '-Declipse.product=org.eclipse.jdt.ls.core.product',
-        '-Dlog.protocol=true',
-        '-Dlog.level=ALL',
-        '-Xms100m',
-        '-Xmx512m',
-        '-jar', vim.fn.glob(jdtls_path .. '/plugins/org.eclipse.equinox.launcher_*.jar'),
-        '-configuration', jdtls_path .. '/config_linux',
-        '-data', temp_dir,
-      },
-      root_dir = root_dir,
-      settings = {},
-      init_options = {},
-    }
-    
-    return jdtls.start_or_attach(config)
-  end
-  
-  -- Try each approach in sequence, if one fails try the next
-  local ok, err = pcall(attempt_1)
-  if not ok then
-    ok, err = pcall(attempt_2)
-    if not ok then
-      ok, err = pcall(attempt_3)
-      if not ok then
-        vim.notify("[JDTLS] All attempts failed. Last error: " .. tostring(err), vim.log.levels.ERROR)
-        vim.notify("[JDTLS] Try running the debug script: bash ~/nvim/debug_jdtls.sh", vim.log.levels.INFO)
-        return false
-      end
-    end
-  end
-  
-  return true
-end
+    -- JDTLS specific keymaps for Java refactoring
+    vim.keymap.set("n", "<A-o>", jdtls.organize_imports, opts)
+    vim.keymap.set("n", "<leader>jo", jdtls.organize_imports, opts)
+    vim.keymap.set("n", "<leader>jv", jdtls.extract_variable, opts)
+    vim.keymap.set("v", "<leader>jv", function() jdtls.extract_variable(true) end, opts)
+    vim.keymap.set("n", "<leader>jc", jdtls.extract_constant, opts)
+    vim.keymap.set("v", "<leader>jc", function() jdtls.extract_constant(true) end, opts)
+    vim.keymap.set("v", "<leader>jm", function() jdtls.extract_method(true) end, opts)
+  end,
+}
 
--- Start the server with our multi-attempt approach
-if try_start_jdtls() then
-  vim.notify("[JDTLS] Server started successfully", vim.log.levels.INFO)
-  
-  -- Add commands for easier management
-  vim.api.nvim_create_user_command('JdtRestart', function()
-    -- Stop existing clients
-    for _, client in ipairs(vim.lsp.get_active_clients()) do
-      if client.name == "jdtls" then
-        client.stop()
-      end
-    end
-    
-    -- Try starting again
-    try_start_jdtls()
-  end, {})
-end
+-- Log the configuration being used
+vim.notify("[JDTLS] Starting with bundled JDTLS from " .. jdtls_dir, vim.log.levels.INFO)
+vim.notify("[JDTLS] Workspace: " .. workspace_dir, vim.log.levels.INFO)
+
+-- Start the JDTLS server
+jdtls.start_or_attach(config)

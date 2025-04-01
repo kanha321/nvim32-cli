@@ -5,7 +5,17 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
 -- Enable maximum LSP logging for debugging
-vim.lsp.set_log_level("debug")
+vim.lsp.set_log_level("info") -- Changed from debug to info (less verbose)
+
+-- Check for bundled JDTLS
+local config_dir = vim.fn.stdpath("config")
+local jdtls_dir = config_dir .. "/jdtls-1.43"
+if vim.fn.isdirectory(jdtls_dir) == 0 then
+  vim.notify("Bundled JDTLS not found. The Java support will not work correctly.", vim.log.levels.WARN)
+end
+
+-- Create a special location for JDTLS workspace
+vim.fn.mkdir(vim.fn.expand("~/.cache/jdtls/workspace"), "p")
 
 -- Verify lazy.nvim path and install if needed
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -18,13 +28,6 @@ if not vim.loop.fs_stat(lazypath) then
   })
 end
 vim.opt.rtp:prepend(lazypath)
-
--- Create a special location for JDTLS logs
-vim.fn.mkdir(vim.fn.expand("~/.cache/jdtls"), "p")
--- Set permission on the JDTLS directory
-vim.fn.system("chmod -R 777 " .. vim.fn.expand("~/.cache/jdtls"))
--- Let JDTLS know where it can find things
-vim.env.JDTLS_HOME = vim.fn.expand("~/.local/share/nvim/mason/packages/jdtls")
 
 -- Basic Neovim settings first
 require('core.options')  -- Basic vim options
@@ -42,25 +45,47 @@ end
 require('core.keymaps')  -- Key mappings
 require('core.autocmds') -- Auto commands
 
--- Add JavaRestart command for manual JDTLS control
-vim.api.nvim_create_user_command('JavaRestart', function()
-  -- Load our java.lua file directly
-  local success, err = pcall(function()
-    vim.cmd('source ' .. vim.fn.stdpath("config") .. '/ftplugin/java.lua')
-  end)
+-- Add command for Java workspace cleaning
+vim.api.nvim_create_user_command('JavaClean', function()
+  -- Get current project
+  local root_markers = { '.git', 'mvnw', 'gradlew', 'pom.xml', 'build.gradle' }
+  local jdtls_setup = require('jdtls.setup')
+  local root_dir = jdtls_setup.find_root(root_markers) or vim.fn.getcwd()
+  local project_name = vim.fn.fnamemodify(root_dir, ":p:h:t")
+  local workspace_dir = vim.fn.expand('~/.cache/jdtls/workspace/') .. project_name
   
-  if success then
-    vim.notify("JDTLS restarted", vim.log.levels.INFO)
-  else
-    vim.notify("Failed to restart JDTLS: " .. tostring(err), vim.log.levels.ERROR)
-  end
+  -- Clean workspace
+  vim.fn.system("rm -rf " .. vim.fn.shellescape(workspace_dir))
+  vim.fn.mkdir(workspace_dir, "p")
+  
+  -- Notify user
+  vim.notify("Java workspace cleaned. Restart JDTLS with :e", vim.log.levels.INFO)
 end, {})
+
+-- Create TermExec command if the code_runner plugin isn't loaded yet
+if not pcall(require, "toggleterm") then
+  vim.api.nvim_create_user_command('TermExec', function(opts)
+    -- Parse the command from the arguments
+    local cmd = opts.args:match("cmd='(.*)'")
+    if not cmd then
+      cmd = opts.args -- If not in cmd='...' format, just use the args directly
+    end
+    
+    -- Fallback implementation using built-in terminal
+    vim.cmd('terminal ' .. cmd)
+    vim.cmd('startinsert')
+  end, {
+    nargs = '+',
+    desc = 'Execute command in terminal',
+    complete = 'file'
+  })
+end
 
 -- Create command to reload configuration
 vim.api.nvim_create_user_command('ReloadConfig', function()
   -- Unload modules to ensure fresh state
   for name, _ in pairs(package.loaded) do
-    if name:match('^plugins') or name:match('^core') then
+    if name:match('^plugins') or name:match('^core') or name:match('^snippets') then
       package.loaded[name] = nil
     end
   end

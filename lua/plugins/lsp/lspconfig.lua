@@ -91,7 +91,7 @@ return {
       ensure_installed = {
         "clangd",           -- C/C++
         "kotlin_language_server",
-        "jdtls",           -- Now we include JDTLS in ensure_installed
+        -- No need to include jdtls here since we use bundled version
       },
       automatic_installation = true,
     })
@@ -100,7 +100,8 @@ return {
     require("mason-lspconfig").setup_handlers({
       -- Default handler
       function(server_name)
-        if server_name ~= "jdtls" then -- Skip jdtls as it's handled separately
+        -- Skip JDTLS since we're handling it separately with bundled version
+        if server_name ~= "jdtls" then
           local server_config = {
             on_attach = on_attach,
             capabilities = capabilities,

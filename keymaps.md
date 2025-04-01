@@ -21,7 +21,7 @@ These keybindings function exactly the same as in IntelliJ IDEA/Android Studio:
 | `<C-1>` | Ctrl+1 | Normal | Toggle file explorer (similar to Alt+1) |
 | `<C-p>` | Ctrl+P | Insert | Show parameter hints |
 
-### Java/Kotlin Refactoring
+### Kotlin Refactoring
 
 | Key Binding | Human-Readable | Mode | Description |
 |-------------|----------------|------|-------------|
@@ -29,13 +29,6 @@ These keybindings function exactly the same as in IntelliJ IDEA/Android Studio:
 | `<leader>ec` | Space+e+c | Normal/Visual | Extract constant (like Ctrl+Alt+C) |
 | `<leader>em` | Space+e+m | Visual | Extract method (like Ctrl+Alt+M) |
 | `<leader>oi` | Space+o+i | Normal | Organize imports (like Ctrl+Alt+O) |
-| `<leader>ji` | Space+j+p | Normal | Organize imports (like Ctrl+Alt+O) |
-| `<leader>jv` | Space+j+v | Normal/Visual | Extract variable (like Ctrl+Alt+V) |
-| `<leader>jc` | Space+j+c | Normal/Visual | Extract constant (like Ctrl+Alt+C) |
-| `<leader>jm` | Space+j+m | Visual | Extract method (like Ctrl+Alt+M) |
-| `<leader>ji` | Space+j+i | Normal | Organize imports (like Ctrl+Alt+O) |
-| `<leader>jr` | Space+j+r | Normal | Restart Java language server |
-| `<leader>jc` | Space+j+c | Normal | Clean Java workspace |
 
 ## 2. Different from IntelliJ
 
@@ -106,4 +99,4 @@ These are Vim/Neovim specific and don't have direct IntelliJ equivalents:
 1. Most important shortcuts (save, find, formatting) use the same key combinations
 2. For Vim-specific navigation between windows, remember `Ctrl` + `h`/`j`/`k`/`l`
 3. The leader key (`<Space>` or Space) is used for many custom commands
-4. Code refactoring for Java/Kotlin follows similar patterns with leader key
+4. Code refactoring for Kotlin follows similar patterns with leader key
